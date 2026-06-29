@@ -37,9 +37,17 @@ Capture a selected screen region as fast as possible.
 
 ## Requirements
 
-- GNOME Shell (Wayland session). QuickSnap uses GNOME Shell's built-in
-  `org.gnome.Shell.Screenshot` D-Bus interface for area selection and
-  capture, so no compositor-specific protocol support is needed.
+- A Wayland session with `xdg-desktop-portal` and a portal backend for your
+  desktop (e.g. `xdg-desktop-portal-gnome`), used via the
+  `org.freedesktop.portal.Screenshot` interface for area selection and
+  capture. These are installed by default on GNOME-based distros (Zorin OS,
+  Fedora Workstation, Ubuntu, ...).
+  GNOME Shell's older private `org.gnome.Shell.Screenshot` D-Bus interface
+  is no longer used: recent GNOME versions lock it down to trusted callers
+  only, so the portal is now the only sanctioned path. One side effect:
+  GNOME's portal shows its full Screenshot UI, which needs an explicit
+  capture click after dragging the rectangle, instead of capturing
+  immediately on mouse release.
 - [`wl-clipboard`](https://github.com/bugaevc/wl-clipboard) (`wl-copy`) for
   setting the clipboard. It's pulled in automatically by the `.deb`/`.rpm`
   packages.
