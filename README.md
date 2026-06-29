@@ -1,6 +1,6 @@
-# SnapArea
+# QuickSnap
 
-SnapArea is a minimal screenshot tool for Linux.
+QuickSnap is a minimal screenshot tool for Linux.
 
 Its goal is simple:
 
