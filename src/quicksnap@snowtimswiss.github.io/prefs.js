@@ -3,9 +3,6 @@
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  * SPDX-FileCopyrightText: 2026 Tim Bleuer
- *
- * The initial implementation was written with AI assistance. It has since been
- * reviewed line by line, is understood, and is maintained by the author.
  */
 
 import Adw from 'gi://Adw';
