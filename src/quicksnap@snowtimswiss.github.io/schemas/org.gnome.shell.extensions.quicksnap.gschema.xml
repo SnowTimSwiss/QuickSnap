@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.quicksnap"
+          path="/org/gnome/shell/extensions/quicksnap/">
+
+    <key name="capture-area" type="as">
+      <default><![CDATA[['<Super><Shift>s']]]></default>
+      <summary>Capture area to clipboard</summary>
+      <description>Keyboard shortcut that starts the area selection.</description>
+    </key>
+
+    <key name="flash" type="b">
+      <default>true</default>
+      <summary>Flash the captured area</summary>
+      <description>Briefly flash the captured region as visual confirmation.</description>
+    </key>
+
+    <key name="shutter-sound" type="b">
+      <default>true</default>
+      <summary>Play the shutter sound</summary>
+      <description>Play the system screen-capture sound after a capture.</description>
+    </key>
+
+    <key name="dim-background" type="b">
+      <default>true</default>
+      <summary>Dim the area outside the selection</summary>
+      <description>Darken everything except the region currently being selected.</description>
+    </key>
+
+    <key name="show-size" type="b">
+      <default>true</default>
+      <summary>Show the selection size</summary>
+      <description>Display the pixel dimensions of the selection while dragging.</description>
+    </key>
+
+  </schema>
+</schemalist>

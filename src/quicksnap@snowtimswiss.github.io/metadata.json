@@ -1,0 +1,9 @@
+{
+  "uuid": "quicksnap@snowtimswiss.github.io",
+  "name": "QuickSnap",
+  "description": "Press a shortcut, drag a rectangle, done. The region lands on the clipboard the moment you release the mouse button.",
+  "shell-version": ["46", "47", "48", "49", "50"],
+  "settings-schema": "org.gnome.shell.extensions.quicksnap",
+  "url": "https://github.com/SnowTimSwiss/QuickSnap",
+  "version-name": "1.0.0"
+}
