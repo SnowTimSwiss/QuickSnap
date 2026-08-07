@@ -1,7 +1,0 @@
-/target
-*.deb
-*.rpm
-*.tar.gz
-.idea/
-.vscode/
-*.swp
