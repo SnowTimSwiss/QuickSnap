@@ -134,3 +134,8 @@ Modern screenshot tools have become image editors.
 QuickSnap focuses on doing one thing well:
 
 Capture a selected screen region as fast as possible.
+
+
+---
+
+**QuickSnap** – Built with ❤️
