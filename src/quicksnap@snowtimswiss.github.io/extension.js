@@ -22,6 +22,39 @@ const CAPTURE_KEY = 'capture-area';
 // that nobody meant to select.
 const MIN_SELECTION = 5;
 
+// Last-resort release of the input grab. Nobody drags a rectangle for a
+// minute, so hitting this means the overlay stopped receiving events at all —
+// which, while holding a modal grab, is an unusable session. Cancelling is a
+// far better outcome than a power button.
+const WATCHDOG_SECONDS = 60;
+
+/**
+ * Points the cursor at the crosshair, or puts it back.
+ *
+ * GNOME Shell 50 dropped Meta.Display.set_cursor() and gave actors their own
+ * cursor instead, so both spellings have to be carried. Neither is allowed to
+ * throw: the cursor shape is cosmetic, but a failure here used to escape while
+ * the overlay held a modal grab, which locks up the whole session.
+ *
+ * @param {Clutter.Actor} actor - the overlay holding the grab
+ * @param {boolean} crosshair - true while selecting, false to restore
+ */
+function setCursor(actor, crosshair) {
+    try {
+        if (actor.set_cursor_type) {
+            actor.set_cursor_type(crosshair
+                ? Clutter.CursorType.CROSSHAIR
+                : Clutter.CursorType.INHERIT);
+        } else if (global.display.set_cursor) {
+            global.display.set_cursor(crosshair
+                ? Meta.Cursor.CROSSHAIR
+                : Meta.Cursor.DEFAULT);
+        }
+    } catch (e) {
+        console.debug(`QuickSnap: could not change the cursor: ${e}`);
+    }
+}
+
 /**
  * Fullscreen, input-grabbing overlay that lets the user drag out a rectangle
  * starting from a zero-sized selection.
@@ -52,6 +85,8 @@ class SelectionOverlay extends St.Widget {
 
         this._grab = null;
         this._destroyLaterId = 0;
+        this._watchdogId = 0;
+        this._lastInputUs = 0;
 
         this.add_constraint(new Clutter.BindConstraint({
             source: global.stage,
@@ -95,23 +130,34 @@ class SelectionOverlay extends St.Widget {
         return new Promise(resolve => {
             this._resolve = resolve;
 
-            Main.uiGroup.add_child(this);
-            Main.uiGroup.set_child_above_sibling(this, null);
-            this._relayout();
-            this.show();
+            // Everything from here on runs with a modal grab in hand. If any
+            // of it throws — a removed API on a newer Shell, most likely —
+            // the grab has to come back off before the exception leaves this
+            // function, or the session is left with no keyboard and no mouse.
+            try {
+                Main.uiGroup.add_child(this);
+                Main.uiGroup.set_child_above_sibling(this, null);
+                this._relayout();
+                this.show();
 
-            this._grab = Main.pushModal(this, {
-                actionMode: Shell.ActionMode.POPUP,
-            });
+                this._grab = Main.pushModal(this, {
+                    actionMode: Shell.ActionMode.POPUP,
+                });
 
-            const needed = Clutter.GrabState.KEYBOARD | Clutter.GrabState.POINTER;
-            if ((this._grab.get_seat_state() & needed) !== needed) {
+                // is_revoked() is the one grab check that exists on every
+                // Shell from 46 to 50; get_seat_state() was removed in 50.
+                if (this._grab.is_revoked?.()) {
+                    this._finish(null);
+                    return;
+                }
+
+                this._startWatchdog();
+                this.grab_key_focus();
+                setCursor(this, true);
+            } catch (e) {
+                console.error('QuickSnap: could not start the selection', e);
                 this._finish(null);
-                return;
             }
-
-            this.grab_key_focus();
-            global.display.set_cursor(Meta.Cursor.CROSSHAIR);
         });
     }
 
@@ -176,6 +222,68 @@ class SelectionOverlay extends St.Widget {
         this._sizeLabel.set_position(Math.round(labelX), Math.round(labelY));
     }
 
+    /**
+     * Notes that input arrived. Called from every event handler, including
+     * motion, so it stays a timestamp write rather than re-arming a timer.
+     */
+    _noteInput() {
+        this._lastInputUs = GLib.get_monotonic_time();
+    }
+
+    /**
+     * Starts the inactivity watchdog. It re-checks rather than cancels the
+     * selection outright, so a slow, deliberate drag is never cut short.
+     */
+    _startWatchdog() {
+        this._noteInput();
+
+        this._watchdogId = GLib.timeout_add_seconds(
+            GLib.PRIORITY_DEFAULT, WATCHDOG_SECONDS, () => {
+                const idleUs = GLib.get_monotonic_time() - this._lastInputUs;
+                if (idleUs < WATCHDOG_SECONDS * GLib.USEC_PER_SEC)
+                    return GLib.SOURCE_CONTINUE;
+
+                this._watchdogId = 0;
+                console.error(
+                    `QuickSnap: no input for ${WATCHDOG_SECONDS}s while ` +
+                    'holding a modal grab, cancelling the selection');
+                this._finish(null);
+                return GLib.SOURCE_REMOVE;
+            });
+    }
+
+    _cancelWatchdog() {
+        if (this._watchdogId) {
+            GLib.Source.remove(this._watchdogId);
+            this._watchdogId = 0;
+        }
+    }
+
+    /**
+     * Gives the grab back. Safe to call more than once, and never throws:
+     * this is the only thing standing between a bug anywhere else in the
+     * overlay and an unusable session.
+     */
+    _releaseGrab() {
+        this._cancelWatchdog();
+
+        const grab = this._grab;
+        this._grab = null;
+
+        if (grab) {
+            try {
+                Main.popModal(grab);
+            } catch (e) {
+                // popModal() throws if the grab is no longer on the stack.
+                // Drop it directly rather than leaving it active.
+                console.error('QuickSnap: releasing the modal grab failed', e);
+                grab.dismiss();
+            }
+        }
+
+        setCursor(this, false);
+    }
+
     _finish(result) {
         if (!this._resolve)
             return;
@@ -183,12 +291,8 @@ class SelectionOverlay extends St.Widget {
         const resolve = this._resolve;
         this._resolve = null;
 
-        global.display.set_cursor(Meta.Cursor.DEFAULT);
-
-        if (this._grab) {
-            Main.popModal(this._grab);
-            this._grab = null;
-        }
+        // Before anything else, and unconditionally.
+        this._releaseGrab();
 
         // Hide before resolving: the caller captures the screen next, and the
         // overlay must not be part of that frame.
@@ -212,11 +316,7 @@ class SelectionOverlay extends St.Widget {
 
         // Reached when the extension is disabled mid-selection: release the
         // grab and unblock whoever is waiting on selectAsync().
-        if (this._grab) {
-            global.display.set_cursor(Meta.Cursor.DEFAULT);
-            Main.popModal(this._grab);
-            this._grab = null;
-        }
+        this._releaseGrab();
 
         if (this._resolve) {
             const resolve = this._resolve;
@@ -228,6 +328,8 @@ class SelectionOverlay extends St.Widget {
     vfunc_button_press_event(event) {
         if (!this._resolve)
             return Clutter.EVENT_STOP;
+
+        this._noteInput();
 
         if (event.get_button() !== Clutter.BUTTON_PRIMARY) {
             this._finish(null);
@@ -246,7 +348,12 @@ class SelectionOverlay extends St.Widget {
     }
 
     vfunc_motion_event(event) {
-        if (!this._resolve || !this._dragging)
+        if (!this._resolve)
+            return Clutter.EVENT_STOP;
+
+        this._noteInput();
+
+        if (!this._dragging)
             return Clutter.EVENT_STOP;
 
         const [x, y] = event.get_coords();
@@ -271,6 +378,8 @@ class SelectionOverlay extends St.Widget {
     }
 
     vfunc_key_press_event(event) {
+        this._noteInput();
+
         if (event.get_key_symbol() === Clutter.KEY_Escape)
             this._finish(null);
 

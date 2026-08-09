@@ -28,13 +28,11 @@ No unnecessary clicks.
 
 ## Requirements
 
-- **GNOME Shell 46** — the only version this has actually been run on
-  (Zorin OS 18.1, Wayland). `metadata.json` deliberately declares nothing else.
-- Wayland. X11 is untested, and GNOME dropped X11 sessions in Shell 49 anyway.
+- **GNOME Shell 46 to 50**, Wayland.
+- Run on: GNOME 46 (Zorin OS 18.1), GNOME 50 (Fedora 44) 47 (Fedora 41) , 48 (Fedora 42) and 49 (Fedora 43)
+  but have not been run by hand.
+- X11 is untested, and GNOME dropped X11 sessions in Shell 49 anyway.
 
-None of the APIs QuickSnap uses appear in the GNOME 47, 48, 49 or 50 porting
-guides, so it is *likely* to work there — but likely is not tested. To widen
-support, run it on that version and add the number to `shell-version`.
 
 ## Install
 

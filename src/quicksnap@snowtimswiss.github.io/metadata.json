@@ -5,5 +5,5 @@
   "shell-version": ["46", "47", "48", "49", "50"],
   "settings-schema": "org.gnome.shell.extensions.quicksnap",
   "url": "https://github.com/SnowTimSwiss/QuickSnap",
-  "version-name": "1.0.0"
+  "version-name": "1.0.1"
 }
