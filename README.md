@@ -30,17 +30,12 @@ No unnecessary clicks.
 
 - **GNOME Shell 46 to 50**, Wayland.
 - Run on: GNOME 46 (Zorin OS 18.1), GNOME 50 (Fedora 44) 47 (Fedora 41) , 48 (Fedora 42) and 49 (Fedora 43)
-  but have not been run by hand.
 - X11 is untested, and GNOME dropped X11 sessions in Shell 49 anyway.
 
 
 ## Install
 
-```sh
-git clone https://github.com/SnowTimSwiss/QuickSnap.git
-cd QuickSnap
-./install.sh
-```
+https://extensions.gnome.org/extension/10651/quicksnap/ <- easiest way to install
 
 On Wayland, GNOME Shell only scans for extensions when the session starts, so
 **log out and back in once** after the first install. QuickSnap comes up
