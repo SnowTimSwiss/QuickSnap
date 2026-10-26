@@ -325,67 +325,90 @@ class SelectionOverlay extends St.Widget {
         }
     }
 
-    vfunc_button_press_event(event) {
-        if (!this._resolve)
-            return Clutter.EVENT_STOP;
-
-        this._noteInput();
-
-        if (event.get_button() !== Clutter.BUTTON_PRIMARY) {
+    /**
+     * Runs an event handler so that nothing it throws can escape while the
+     * modal grab is held: a removed Clutter event API on a newer Shell would
+     * otherwise leave every click and keypress failing with no way out.
+     */
+    _guard(handler) {
+        try {
+            return handler();
+        } catch (e) {
+            console.error('QuickSnap: event handler failed, cancelling', e);
             this._finish(null);
             return Clutter.EVENT_STOP;
         }
+    }
 
-        const [x, y] = event.get_coords();
-        this._startX = Math.floor(x);
-        this._startY = Math.floor(y);
-        this._lastX = this._startX;
-        this._lastY = this._startY;
-        this._dragging = true;
-        this._relayout();
+    vfunc_button_press_event(event) {
+        return this._guard(() => {
+            if (!this._resolve)
+                return Clutter.EVENT_STOP;
 
-        return Clutter.EVENT_STOP;
+            this._noteInput();
+
+            if (event.get_button() !== Clutter.BUTTON_PRIMARY) {
+                this._finish(null);
+                return Clutter.EVENT_STOP;
+            }
+
+            const [x, y] = event.get_coords();
+            this._startX = Math.floor(x);
+            this._startY = Math.floor(y);
+            this._lastX = this._startX;
+            this._lastY = this._startY;
+            this._dragging = true;
+            this._relayout();
+
+            return Clutter.EVENT_STOP;
+        });
     }
 
     vfunc_motion_event(event) {
-        if (!this._resolve)
+        return this._guard(() => {
+            if (!this._resolve)
+                return Clutter.EVENT_STOP;
+
+            this._noteInput();
+
+            if (!this._dragging)
+                return Clutter.EVENT_STOP;
+
+            const [x, y] = event.get_coords();
+            this._lastX = Math.floor(x);
+            this._lastY = Math.floor(y);
+            this._relayout();
+
             return Clutter.EVENT_STOP;
-
-        this._noteInput();
-
-        if (!this._dragging)
-            return Clutter.EVENT_STOP;
-
-        const [x, y] = event.get_coords();
-        this._lastX = Math.floor(x);
-        this._lastY = Math.floor(y);
-        this._relayout();
-
-        return Clutter.EVENT_STOP;
+        });
     }
 
     vfunc_button_release_event() {
-        if (!this._resolve || !this._dragging)
+        return this._guard(() => {
+            if (!this._resolve || !this._dragging)
+                return Clutter.EVENT_STOP;
+
+            const rect = this._geometry();
+            const tooSmall =
+                rect.width < MIN_SELECTION || rect.height < MIN_SELECTION;
+
+            this._finish(tooSmall ? null : rect);
+
             return Clutter.EVENT_STOP;
-
-        const rect = this._geometry();
-        const tooSmall =
-            rect.width < MIN_SELECTION || rect.height < MIN_SELECTION;
-
-        this._finish(tooSmall ? null : rect);
-
-        return Clutter.EVENT_STOP;
+        });
     }
 
     vfunc_key_press_event(event) {
-        this._noteInput();
+        return this._guard(() => {
+            this._noteInput();
 
-        if (event.get_key_symbol() === Clutter.KEY_Escape)
-            this._finish(null);
+            if (event.get_key_symbol() === Clutter.KEY_Escape)
+                this._finish(null);
 
-        // Swallow everything else: we hold a modal grab, and keystrokes must
-        // not leak through to whatever is underneath.
-        return Clutter.EVENT_STOP;
+            // Swallow everything else: we hold a modal grab, and keystrokes must
+            // not leak through to whatever is underneath.
+            return Clutter.EVENT_STOP;
+        });
     }
 });
 

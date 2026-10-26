@@ -28,7 +28,7 @@ No unnecessary clicks.
 
 ## Requirements
 
-- **GNOME Shell 46 to 50**, Wayland.
+- **GNOME Shell 46 to 51**, Wayland.
 - Run on: GNOME 46 (Zorin OS 18.1), GNOME 50 (Fedora 44) 47 (Fedora 41) , 48 (Fedora 42) and 49 (Fedora 43)
 - X11 is untested, and GNOME dropped X11 sessions in Shell 49 anyway.
 
